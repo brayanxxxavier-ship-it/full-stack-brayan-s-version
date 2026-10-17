@@ -1254,3 +1254,19 @@ td strong {
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
+@keyframes heroFadeSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-animated-word {
+  animation: heroFadeSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  color: var(--brand-accent, #2563eb);
+  font-weight: 700;
+}

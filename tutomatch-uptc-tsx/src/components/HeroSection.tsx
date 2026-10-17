@@ -2,10 +2,9 @@ import React from 'react';
 
 interface HeroSectionProps {
   title: string;
-  fade?: boolean;
 }
 
-export function HeroSection({ title, fade = true }: HeroSectionProps) {
+export function HeroSection({ title }: HeroSectionProps) {
   return (
     <section className="hero-section" style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto' }}>
       <div className="intro">
@@ -13,18 +12,11 @@ export function HeroSection({ title, fade = true }: HeroSectionProps) {
           <span className="eyebrow-line" /> Centro de tutorías UPTC
         </div>
         <h1 style={{ textAlign: 'center', lineHeight: '1.25', margin: '20px 0 15px' }}>
-          {/* Contenedor estilo AI Studio: altura fija + transición de opacidad y desplazamiento */}
+          {/* El key={title} fuerza a React a animar cada cambio de palabra de forma limpia */}
           <span 
-            style={{ 
-              display: 'block', 
-              height: '1.3em', 
-              lineHeight: '1.3em',
-              transition: 'opacity 0.3s ease, transform 0.3s ease',
-              opacity: fade ? 1 : 0,
-              transform: fade ? 'translateY(0)' : 'translateY(-6px)',
-              color: 'var(--brand-accent, #2563eb)',
-              fontWeight: 700
-            }}
+            key={title} 
+            className="hero-animated-word"
+            style={{ display: 'inline-block', minWidth: '240px', textAlign: 'center' }}
           >
             {title}
           </span>

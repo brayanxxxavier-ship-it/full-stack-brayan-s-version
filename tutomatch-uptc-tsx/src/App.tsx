@@ -9,25 +9,18 @@ import { AdminDashboard } from './components/AdminDashboard';
 
 type View = 'home' | 'admin' | 'privacy' | 'terms';
 
-function useFadeSwitcher(words: string[], interval = 2800) {
+function useWordRotator(words: string[], interval = 3000) {
   const [index, setIndex] = useState(0);
-  const [fade, setFade] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setFade(false); // Inicia el desvanecimiento
-      setTimeout(() => {
-        setIndex((prev) => (prev + 1) % words.length);
-        setFade(true); // Aparece la nueva palabra
-      }, 300); // Tiempo de la transición
+      setIndex((prev) => (prev + 1) % words.length);
     }, interval);
-
     return () => clearInterval(timer);
   }, [words, interval]);
 
-  return { text: words[index], fade };
+  return words[index];
 }
-
 function App() {
   const [view, setView] = useState<View>('home');
   const [dark, setDark] = useState(() => localStorage.getItem('tutomatch-theme') === 'dark');
@@ -35,7 +28,7 @@ function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [pqrsOpen, setPqrsOpen] = useState(false);
-  const { text: titleText, fade } = useFadeSwitcher(['Aprender', 'Entender', 'Avanzar']);
+  const title = useWordRotator(['Aprender', 'Entender', 'Avanzar'], 3200);
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
@@ -149,7 +142,7 @@ function App() {
 
       {view === 'home' && (
         <main className="container main-content">
-         <HeroSection title={titleText} fade={fade} />
+       <HeroSection title={title} />
           <HomeContent grouped={grouped} loadingSubjects={loadingSubjects} onPqrs={() => setPqrsOpen(true)} />
         </main>
       )}
