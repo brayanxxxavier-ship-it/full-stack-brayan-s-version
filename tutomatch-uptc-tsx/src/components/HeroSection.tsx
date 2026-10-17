@@ -12,8 +12,10 @@ export function HeroSection({ title }: HeroSectionProps) {
           <span className="eyebrow-line" /> Centro de tutorías UPTC
         </div>
         <h1 style={{ textAlign: 'center', lineHeight: '1.25', margin: '20px 0 15px' }}>
-          {/* Se usa {title || '\u00A0'} para evitar que el bloque colapse a altura 0 al vaciarse */}
-          <span style={{ display: 'block', minHeight: '1.25em' }}>{title || '\u00A0'}</span>
+          {/* inline-block y minWidth evitan el salto horizontal y vertical al centrar */}
+          <span style={{ display: 'inline-block', minWidth: '260px', textAlign: 'center' }}>
+            {title || '\u00A0'}
+          </span>
           <span style={{ display: 'block', fontStyle: 'normal', fontWeight: 'normal', color: 'var(--muted)' }}>
             se siente mejor
           </span>

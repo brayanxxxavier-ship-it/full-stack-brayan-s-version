@@ -20,12 +20,12 @@ function useTypewriter(words: string[]) {
       const next = deleting ? word.slice(0, text.length - 1) : word.slice(0, text.length + 1);
       setText(next);
       if (!deleting && next === word) {
-        window.setTimeout(() => setDeleting(true), 1100);
+        window.setTimeout(() => setDeleting(true), 1300); // Pausa cuando termina de escribir la palabra
       } else if (deleting && next === '') {
         setDeleting(false);
         setIndex((value) => (value + 1) % words.length);
       }
-    }, deleting ? 54 : 98);
+    }, deleting ? 75 : 130); // 130ms para escribir (más lento) y 75ms para borrar suavemente
     return () => window.clearTimeout(timer);
   }, [deleting, index, text, words]);
 
