@@ -149,7 +149,7 @@ function App() {
 
       {view === 'home' && (
         <main className="container main-content">
-          <HeroSection title={title} />
+         <HeroSection title={titleText} fade={fade} />
           <HomeContent grouped={grouped} loadingSubjects={loadingSubjects} onPqrs={() => setPqrsOpen(true)} />
         </main>
       )}
