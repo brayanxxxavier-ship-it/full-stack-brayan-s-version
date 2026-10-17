@@ -9,27 +9,23 @@ import { AdminDashboard } from './components/AdminDashboard';
 
 type View = 'home' | 'admin' | 'privacy' | 'terms';
 
-function useTypewriter(words: string[]) {
+function useFadeSwitcher(words: string[], interval = 2800) {
   const [index, setIndex] = useState(0);
-  const [text, setText] = useState(words[0]);
-  const [deleting, setDeleting] = useState(false);
+  const [fade, setFade] = useState(true);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const word = words[index];
-      const next = deleting ? word.slice(0, text.length - 1) : word.slice(0, text.length + 1);
-      setText(next);
-      if (!deleting && next === word) {
-        window.setTimeout(() => setDeleting(true), 1300); // Pausa cuando termina de escribir la palabra
-      } else if (deleting && next === '') {
-        setDeleting(false);
-        setIndex((value) => (value + 1) % words.length);
-      }
-    }, deleting ? 75 : 130); // 130ms para escribir (más lento) y 75ms para borrar suavemente
-    return () => window.clearTimeout(timer);
-  }, [deleting, index, text, words]);
+    const timer = setInterval(() => {
+      setFade(false); // Inicia el desvanecimiento
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % words.length);
+        setFade(true); // Aparece la nueva palabra
+      }, 300); // Tiempo de la transición
+    }, interval);
 
-  return text;
+    return () => clearInterval(timer);
+  }, [words, interval]);
+
+  return { text: words[index], fade };
 }
 
 function App() {
@@ -39,7 +35,7 @@ function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [pqrsOpen, setPqrsOpen] = useState(false);
-  const title = useTypewriter(['Aprender', 'Entender', 'Avanzar']);
+  const { text: titleText, fade } = useFadeSwitcher(['Aprender', 'Entender', 'Avanzar']);
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
