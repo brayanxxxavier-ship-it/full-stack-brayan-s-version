@@ -25,7 +25,7 @@ export function HeroSection({ title }: HeroSectionProps) {
         </p>
       </div>
 
-      {/* Modelo 3D limpio sin caja y con scroll bloqueado */}
+      {/* Modelo 3D de Pitágoras */}
       <div style={{ position: 'relative', width: '100%', height: '380px', margin: '10px auto 0' }}>
         {React.createElement('model-viewer', {
           src: '/pitagoras.glb',
