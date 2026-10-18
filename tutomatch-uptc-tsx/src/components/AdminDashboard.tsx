@@ -1,5 +1,5 @@
 import { FormEvent, type Dispatch, type ReactNode, type SetStateAction, useEffect, useState } from 'react';
-import { BarChart3, Database, FileText, LockKeyhole, LogIn, LogOut, Plus, Search, Trash2, Send, Code } from 'lucide-react';
+import { BarChart3, Code, Database, FileText, LockKeyhole, LogIn, LogOut, Plus, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { categoryLabels } from '../lib/catalog';
 import type { Category, Pqrs, Subject, Tutoria } from '../types';
@@ -30,9 +30,8 @@ export function AdminDashboard({ subjects, setSubjects }: AdminDashboardProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  // Estado para la simulación y exportación de datos JSON desde Supabase
+  // Estado para generar y mostrar los datos de Supabase en formato JSON
   const [jsonExport, setJsonExport] = useState<string>('');
-  const [exportingJson, setExportingJson] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
 
   useEffect(() => {
@@ -120,29 +119,23 @@ export function AdminDashboard({ subjects, setSubjects }: AdminDashboardProps) {
     setSubjects((current) => current.filter((subject) => subject.id !== id));
   };
 
-  // Simulación y serialización asíncrona de datos de Supabase en formato JSON
+  // Función para serializar los datos activos de Supabase en JSON
   const handleGenerateJson = () => {
-    setExportingJson(true);
-    try {
-      const payload = {
-        sistema: "TutoMatch UPTC",
-        generado_en: new Date().toISOString(),
-        resumen_estadisticas: {
-          total_solicitudes: requests.length,
-          total_materias_activas: subjects.length,
-          total_pqrs: pqrs.length,
-          distribucion_areas: counts
-        },
-        registros_solicitudes: requests,
-        catalogo_materias: subjects,
-        pqrs_registradas: pqrs
-      };
-      setJsonExport(JSON.stringify(payload, null, 2));
-    } catch (e) {
-      setJsonExport(JSON.stringify({ error: "No se pudieron serializar los datos de Supabase" }));
-    } finally {
-      setExportingJson(false);
-    }
+    const payload = {
+      sistema: "TutoMatch UPTC",
+      generado_en: new Date().toISOString(),
+      estadisticas: {
+        total_solicitudes: requests.length,
+        materias_activas: subjects.length,
+        pqrs_totales: pqrs.length,
+        administradores_registrados: admins.length
+      },
+      registros_solicitudes: requests,
+      catalogo_materias: subjects,
+      pqrs_recibidas: pqrs,
+      administradores: admins
+    };
+    setJsonExport(JSON.stringify(payload, null, 2));
   };
 
   const copyJsonToClipboard = () => {
@@ -293,19 +286,19 @@ export function AdminDashboard({ subjects, setSubjects }: AdminDashboardProps) {
         </div>
       </section>
 
-      {/* SECCIÓN NUEVA: SIMULACIÓN Y EXPORTACIÓN DE DATOS SUPABASE EN JSON */}
-      <section className="dashboard-card requests-card" style={{ marginTop: '24px' }}>
+      {/* TARJETA AÑADIDA: Visualizador y exportador de datos Supabase en formato JSON */}
+      <section className="dashboard-card requests-card">
         <div className="card-heading">
           <div>
-            <span className="eyebrow">INTEROPERABILIDAD Y API</span>
-            <h2>Datos de Supabase en formato JSON</h2>
+            <span className="eyebrow">INTEROPERABILIDAD Y DATOS</span>
+            <h2>Exportar registros en JSON</h2>
           </div>
-          <button className="secondary-button" onClick={handleGenerateJson} disabled={exportingJson}>
-            <Code size={16} /> {exportingJson ? 'Generando...' : 'Generar JSON de Supabase'}
+          <button className="secondary-button" onClick={handleGenerateJson}>
+            <Code size={16} /> Generar JSON de Supabase
           </button>
         </div>
         <p style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '16px' }}>
-          Simula la serialización asíncrona de los registros activos de la base de datos para consumo de servicios externos.
+          Serializa en tiempo real los registros, materias y PQRS obtenidos desde la base de datos de Supabase.
         </p>
 
         {jsonExport && (
@@ -315,7 +308,7 @@ export function AdminDashboard({ subjects, setSubjects }: AdminDashboardProps) {
                 {copiedJson ? '¡Copiado al portapapeles!' : 'Copiar JSON'}
               </button>
             </div>
-            <div style={{ background: '#0f172a', color: '#38bdf8', padding: '16px', borderRadius: '8px', fontSize: '13px', overflowX: 'auto', maxHeight: '320px', fontFamily: 'monospace' }}>
+            <div style={{ background: '#0f172a', color: '#38bdf8', padding: '16px', borderRadius: '8px', fontSize: '13px', overflowX: 'auto', maxHeight: '300px', fontFamily: 'monospace' }}>
               <pre>{jsonExport}</pre>
             </div>
           </div>
