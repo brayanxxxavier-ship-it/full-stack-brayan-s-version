@@ -9,18 +9,6 @@ import { AdminDashboard } from './components/AdminDashboard';
 
 type View = 'home' | 'admin' | 'privacy' | 'terms';
 
-function useWordRotator(words: string[], interval = 3000) {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % words.length);
-    }, interval);
-    return () => clearInterval(timer);
-  }, [words, interval]);
-
-  return words[index];
-}
 function App() {
   const [view, setView] = useState<View>('home');
   const [dark, setDark] = useState(() => localStorage.getItem('tutomatch-theme') === 'dark');
@@ -28,11 +16,12 @@ function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [pqrsOpen, setPqrsOpen] = useState(false);
-// Selecciona una palabra aleatoria única cada vez que la página carga o se recarga
-const [title] = useState(() => {
-  const words = ['Aprender', 'Entender', 'Avanzar'];
-  return words[Math.floor(Math.random() * words.length)];
-});
+
+  // Selecciona una palabra estable única al cargar la página (cero parpadeos ni saltos)
+  const [title] = useState(() => {
+    const words = ['Aprender', 'Entender', 'Avanzar'];
+    return words[Math.floor(Math.random() * words.length)];
+  });
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
@@ -146,7 +135,7 @@ const [title] = useState(() => {
 
       {view === 'home' && (
         <main className="container main-content">
-       <HeroSection title={title} />
+          <HeroSection title={title} />
           <HomeContent grouped={grouped} loadingSubjects={loadingSubjects} onPqrs={() => setPqrsOpen(true)} />
         </main>
       )}
