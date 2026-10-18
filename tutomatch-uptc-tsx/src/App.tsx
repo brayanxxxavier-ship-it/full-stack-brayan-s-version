@@ -28,7 +28,11 @@ function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [pqrsOpen, setPqrsOpen] = useState(false);
-  const title = useWordRotator(['Aprender', 'Entender', 'Avanzar'], 3200);
+// Selecciona una palabra aleatoria única cada vez que la página carga o se recarga
+const [title] = useState(() => {
+  const words = ['Aprender', 'Entender', 'Avanzar'];
+  return words[Math.floor(Math.random() * words.length)];
+});
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);

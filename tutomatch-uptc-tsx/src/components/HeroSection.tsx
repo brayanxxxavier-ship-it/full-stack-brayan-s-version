@@ -12,12 +12,7 @@ export function HeroSection({ title }: HeroSectionProps) {
           <span className="eyebrow-line" /> Centro de tutorías UPTC
         </div>
         <h1 style={{ textAlign: 'center', lineHeight: '1.25', margin: '20px 0 15px' }}>
-          {/* El key={title} fuerza a React a animar cada cambio de palabra de forma limpia */}
-          <span 
-            key={title} 
-            className="hero-animated-word"
-            style={{ display: 'inline-block', minWidth: '240px', textAlign: 'center' }}
-          >
+          <span style={{ display: 'block', color: 'var(--brand-accent, #2563eb)', fontWeight: 700 }}>
             {title}
           </span>
           <span style={{ display: 'block', fontStyle: 'normal', fontWeight: 'normal', color: 'var(--muted)' }}>
