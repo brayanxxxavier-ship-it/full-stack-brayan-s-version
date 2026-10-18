@@ -24,7 +24,7 @@ export function HeroSection({ title }: HeroSectionProps) {
           Conecta con acompañamiento académico a tu ritmo, con el respaldo de la Universidad Pedagógica y Tecnológica de Colombia.
         </p>
       </div>
-      // pitagoras.glb is a 3D model of Pythagoras, which can be used to illustrate mathematical concepts in a more interactive way. The model can be rotated and viewed from different angles, providing a better understanding of the subject matter.
+     
       {/* Modelo 3D de Pitágoras */}
       <div style={{ position: 'relative', width: '100%', height: '380px', margin: '10px auto 0' }}>
         {React.createElement('model-viewer', {
