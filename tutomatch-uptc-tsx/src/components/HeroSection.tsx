@@ -1,9 +1,9 @@
 import React from 'react';
-// Import the model-viewer component
+
 interface HeroSectionProps {
   title: string;
 }
-// HeroSection component
+
 export function HeroSection({ title }: HeroSectionProps) {
   return (
     <section className="hero-section" style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto' }}>
@@ -24,7 +24,7 @@ export function HeroSection({ title }: HeroSectionProps) {
           Conecta con acompañamiento académico a tu ritmo, con el respaldo de la Universidad Pedagógica y Tecnológica de Colombia.
         </p>
       </div>
-     
+
       {/* Modelo 3D de Pitágoras */}
       <div style={{ position: 'relative', width: '100%', height: '380px', margin: '10px auto 0' }}>
         {React.createElement('model-viewer', {
