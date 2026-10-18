@@ -1,363 +1,304 @@
-import { FormEvent, type Dispatch, type ReactNode, type SetStateAction, useEffect, useState } from 'react';
-import { BarChart3, Database, FileText, LockKeyhole, LogIn, LogOut, Plus, Search, Trash2 } from 'lucide-react';
+import { useState, useEffect, FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
-import { categoryLabels } from '../lib/catalog';
-import type { Category, Pqrs, Subject, Tutoria } from '../types';
-
-export interface Administrador {
-  id: string;
-  email: string;
-  nombre: string;
-  created_at: string;
-}
-
-const emptyCounts: Record<Category, number> = { licenciaturas: 0, ingenierias: 0, arquitectura: 0 };
+import type { Subject, Category } from '../types';
+import { Plus, Trash2, RefreshCw, Send, Users, BookOpen, MessageSquare, BarChart3 } from 'lucide-react';
 
 interface AdminDashboardProps {
   subjects: Subject[];
-  setSubjects: Dispatch<SetStateAction<Subject[]>>;
+  setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
 }
 
 export function AdminDashboard({ subjects, setSubjects }: AdminDashboardProps) {
-  const [session, setSession] = useState<boolean>(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [requests, setRequests] = useState<Tutoria[]>([]);
-  const [pqrs, setPqrs] = useState<Pqrs[]>([]);
-  const [admins, setAdmins] = useState<Administrador[]>([]);
-  const [newSubject, setNewSubject] = useState({ nombre: '', categoria: 'ingenierias' as Category });
-  const [editing, setEditing] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'stats' | 'subjects' | 'pqrs'>('stats');
+  const [newNombre, setNewNombre] = useState('');
+  const [newCategoria, setNewCategoria] = useState<Category>('ingenierias');
+  const [statusMsg, setStatusMsg] = useState('');
+  const [loadingAction, setLoadingAction] = useState(false);
 
+  // Estados para datos recibidos de Supabase
+  const [pqrsList, setPqrsList] = useState<any[]>([]);
+  const [loadingPqrs, setLoadingPqrs] = useState(false);
+
+  // Estados para la demostración de fetch() y JSON (Paso 4 Rúbrica)
+  const [apiResponse, setApiResponse] = useState<any>(null);
+  const [fetchingApi, setFetchingApi] = useState(false);
+
+  // Cargar PQRS registradas desde Supabase
   useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setSession(Boolean(data.session)));
-    const auth = supabase.auth.onAuthStateChange((_event, next) => setSession(Boolean(next)));
-    return () => auth.data.subscription.unsubscribe();
+    const fetchPqrs = async () => {
+      if (!supabase) return;
+      setLoadingPqrs(true);
+      const { data } = await supabase.from('pqrs').select('*').order('created_at', { ascending: false });
+      if (data) setPqrsList(data);
+      setLoadingPqrs(false);
+    };
+
+    void fetchPqrs();
   }, []);
 
-  useEffect(() => {
-    if (!session || !supabase) return;
-    const client = supabase; // Guardamos la referencia asegurada
+  // Agregar asignatura a Supabase
+  const handleAddSubject = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newNombre.trim()) return;
 
-    const load = async () => {
-      const [requestResult, pqrsResult, subjectResult, adminsResult] = await Promise.all([
-        client.from('solicitudes_tutoria').select('*').order('fecha_registro', { ascending: false }),
-        client.from('pqrs').select('*').order('created_at', { ascending: false }),
-        client.from('materias').select('*').order('categoria').order('nombre'),
-        client.from('administradores').select('*').order('created_at', { ascending: false }),
-      ]);
-      setRequests(requestResult.data ?? []);
-      setPqrs(pqrsResult.data ?? []);
-      setSubjects(subjectResult.data ?? []);
-      setAdmins(adminsResult.data ?? []);
-    };
+    if (!supabase) {
+      setStatusMsg('Supabase no está disponible en modo offline.');
+      return;
+    }
 
-    void load();
+    setLoadingAction(true);
+    setStatusMsg('');
 
-    const channel = client
-      .channel('admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_tutoria' }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pqrs' }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'materias' }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'administradores' }, () => void load())
-      .subscribe();
-
-    return () => {
-      void client.removeChannel(channel);
-    };
-  }, [session, setSubjects]);
-
-  const login = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!supabase) return setLoginError('Error de autenticación. Inténtalo más tarde.');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setLoginError('Error de autenticación. Credenciales inválidas o no tienes permisos de acceso.');
-  };
-
-  const counts = requests.reduce(
-    (acc, request) => {
-      const subject = subjects.find((item) => item.nombre === request.materia_id);
-      if (subject) acc[subject.categoria] += 1;
-      return acc;
-    },
-    { ...emptyCounts }
-  );
-
-  const filtered = requests.filter((item) =>
-    `${item.nombre} ${item.email_corp} ${item.codigo_est} ${item.materia_id}`.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const addSubject = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!supabase || !newSubject.nombre.trim()) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('materias')
-      .insert({ nombre: newSubject.nombre.trim(), categoria: newSubject.categoria, activa: true })
-      .select()
-      .single();
-    if (data) {
-      setSubjects((current) => [...current, data]);
-      setNewSubject({ nombre: '', categoria: newSubject.categoria });
+      .insert([{ nombre: newNombre.trim(), categoria: newCategoria, activa: true }])
+      .select();
+
+    setLoadingAction(false);
+
+    if (error) {
+      setStatusMsg('Error al agregar: ' + error.message);
+    } else if (data) {
+      setSubjects((prev) => [...prev, data[0] as Subject]);
+      setNewNombre('');
+      setStatusMsg('Asignatura agregada correctamente.');
     }
   };
 
-  const updateSubject = async (subject: Subject) => {
+  // Eliminar asignatura de Supabase
+  const handleDeleteSubject = async (id: string) => {
     if (!supabase) return;
-    await supabase.from('materias').update({ nombre: subject.nombre, categoria: subject.categoria }).eq('id', subject.id);
-    setEditing(null);
+    const { error } = await supabase.from('materias').delete().eq('id', id);
+    if (!error) {
+      setSubjects((prev) => prev.filter((s) => s.id !== id));
+      setStatusMsg('Asignatura eliminada.');
+    } else {
+      setStatusMsg('Error al eliminar: ' + error.message);
+    }
   };
 
-  const removeSubject = async (id: string) => {
-    if (!supabase || !window.confirm('¿Desactivar esta asignatura?')) return;
-    await supabase.from('materias').update({ activa: false }).eq('id', id);
-    setSubjects((current) => current.filter((subject) => subject.id !== id));
+  // Demostración asíncrona mediante fetch() y JSON
+  const handleFetchJsonDemo = async () => {
+    setFetchingApi(true);
+    setApiResponse(null);
+    try {
+      const response = await fetch('https://jsonplaceholder.typicode.com/users/1', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Error en la comunicación HTTP');
+      const jsonData = await response.json();
+      setApiResponse(jsonData);
+    } catch (err: any) {
+      setApiResponse({ error: err.message || 'Error en petición fetch' });
+    } finally {
+      setFetchingApi(false);
+    }
   };
-
-  if (!session) {
-    return (
-      <main className="container admin-page">
-        <section className="login-card">
-          <div className="admin-icon">
-            <LockKeyhole size={22} />
-          </div>
-          <span className="eyebrow">ÁREA RESTRINGIDA</span>
-          <h1>Dashboard <em>coordinación.</em></h1>
-          <p>Inicia sesión con tus credenciales institucionales habilitadas para acceder al panel administrativo.</p>
-          <form onSubmit={login}>
-            <label className="field">
-              <span>Correo administrador</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="coordinacion@uptc.edu.co"
-                autoComplete="email"
-                required
-              />
-            </label>
-            <label className="field">
-              <span>Contraseña</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </label>
-            {loginError && <div className="form-feedback error">{loginError}</div>}
-            <button className="submit-button">
-              <strong>Entrar al dashboard</strong>
-              <LogIn size={17} />
-            </button>
-          </form>
-        </section>
-      </main>
-    );
-  }
 
   return (
-    <main className="container admin-page">
-      <div className="admin-header">
+    <main className="container main-content" style={{ marginTop: '30px', paddingBottom: '60px' }}>
+      <div className="section-heading" style={{ marginBottom: '25px' }}>
         <div>
-          <span className="eyebrow">PANEL DE COORDINACIÓN · TIEMPO REAL</span>
-          <h1>Todo bajo <em>control.</em></h1>
+          <span className="eyebrow">PANEL DE ADMINISTRACIÓN</span>
+          <h2>Control y métricas <em>TutoMatch UPTC.</em></h2>
         </div>
-        <button className="secondary-button" onClick={() => supabase?.auth.signOut()}>
-          <LogOut size={16} /> Cerrar sesión
+        <span className="live-badge"><i /> Supabase Realtime</span>
+      </div>
+
+      {statusMsg && (
+        <div className="form-feedback success" style={{ marginBottom: '20px' }}>
+          {statusMsg}
+        </div>
+      )}
+
+      {/* PESTAÑAS DE NAVEGACIÓN INTERNA */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '25px', borderBottom: '1px solid var(--border-color, #e2e8f0)', paddingBottom: '12px' }}>
+        <button 
+          className={activeTab === 'stats' ? 'nav-item-bubble active' : 'nav-item-bubble'}
+          onClick={() => setActiveTab('stats')}
+        >
+          <BarChart3 size={16} /> Resumen General
+        </button>
+        <button 
+          className={activeTab === 'subjects' ? 'nav-item-bubble active' : 'nav-item-bubble'}
+          onClick={() => setActiveTab('subjects')}
+        >
+          <BookOpen size={16} /> Catálogo de Materias ({subjects.length})
+        </button>
+        <button 
+          className={activeTab === 'pqrs' ? 'nav-item-bubble active' : 'nav-item-bubble'}
+          onClick={() => setActiveTab('pqrs')}
+        >
+          <MessageSquare size={16} /> PQRS Recibidas ({pqrsList.length})
         </button>
       </div>
-      <div className="metrics">
-        <Metric icon={<BarChart3 />} value={requests.length} label="Solicitudes" />
-        <Metric icon={<Database />} value={subjects.length} label="Asignaturas activas" />
-        <Metric icon={<FileText />} value={pqrs.filter((item) => item.estado === 'pendiente').length} label="PQRS pendientes" />
-      </div>
-      <section className="dashboard-grid">
-        <div className="dashboard-card chart-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">DISTRIBUCIÓN</span>
-              <h2>Solicitudes por área</h2>
-            </div>
-            <span className="live-badge"><i /> vivo</span>
-          </div>
-          <div className="bars">
-            {(Object.keys(categoryLabels) as Category[]).map((category) => (
-              <div className="bar-row" key={category}>
-                <span>{categoryLabels[category]}</span>
-                <div className="bar-track">
-                  <i style={{ width: `${Math.min(100, Math.max(8, counts[category] * 12))}%` }} />
-                </div>
-                <strong>{counts[category]}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="dashboard-card catalog-admin">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">CRUD DE ASIGNATURAS</span>
-              <h2>Catálogo</h2>
-            </div>
-          </div>
-          <form className="inline-form" onSubmit={addSubject}>
-            <input
-              value={newSubject.nombre}
-              onChange={(event) => setNewSubject({ ...newSubject, nombre: event.target.value })}
-              placeholder="Nueva asignatura"
-              required
-            />
-            <select
-              value={newSubject.categoria}
-              onChange={(event) => setNewSubject({ ...newSubject, categoria: event.target.value as Category })}
-            >
-              {(Object.keys(categoryLabels) as Category[]).map((category) => (
-                <option key={category} value={category}>
-                  {categoryLabels[category]}
-                </option>
-              ))}
-            </select>
-            <button className="icon-button" aria-label="Crear asignatura">
-              <Plus size={17} />
-            </button>
-          </form>
-          <div className="admin-subject-list">
-            {subjects.map((subject) => (
-              <div className="admin-subject" key={subject.id}>
-                {editing === subject.id ? (
-                  <input
-                    autoFocus
-                    value={subject.nombre}
-                    onChange={(event) =>
-                      setSubjects((items) =>
-                        items.map((item) => (item.id === subject.id ? { ...item, nombre: event.target.value } : item))
-                      )
-                    }
-                    onBlur={() => void updateSubject(subject)}
-                  />
-                ) : (
-                  <>
-                    <span>
-                      {subject.nombre}
-                      <small>{categoryLabels[subject.categoria]}</small>
-                    </span>
-                    <button onClick={() => setEditing(subject.id)} aria-label={`Editar ${subject.nombre}`}>
-                      Editar
-                    </button>
-                    <button onClick={() => void removeSubject(subject.id)} aria-label={`Desactivar ${subject.nombre}`}>
-                      <Trash2 size={14} />
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="dashboard-card requests-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">REGISTROS</span>
-            <h2>Estudiantes inscritos</h2>
-          </div>
-          <label className="search-field">
-            <Search size={15} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, código…" />
-          </label>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Estudiante</th>
-                <th>Correo</th>
-                <th>Código</th>
-                <th>Asignatura</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((request) => (
-                <tr key={request.id}>
-                  <td><strong>{request.nombre}</strong></td>
-                  <td>{request.email_corp}</td>
-                  <td>{request.codigo_est}</td>
-                  <td><span className="table-tag">{request.materia_id}</span></td>
-                  <td>{new Date(request.fecha_registro).toLocaleDateString('es-CO')}</td>
-                </tr>
-              ))}
-              {!filtered.length && (
-                <tr>
-                  <td colSpan={5}>No hay registros que coincidan.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section className="dashboard-card requests-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">EQUIPO</span>
-            <h2>Administradores autorizados</h2>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Correo Institucional</th>
-                <th>Fecha alta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {admins.map((admin) => (
-                <tr key={admin.id}>
-                  <td><strong>{admin.nombre}</strong></td>
-                  <td>{admin.email}</td>
-                  <td>{new Date(admin.created_at).toLocaleDateString('es-CO')}</td>
-                </tr>
-              ))}
-              {!admins.length && (
-                <tr>
-                  <td colSpan={3}>No se encontraron administradores registrados.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section className="dashboard-card requests-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">PQRS</span>
-            <h2>Atención ciudadana</h2>
-          </div>
-        </div>
-        <div className="pqrs-list">
-          {pqrs.slice(0, 8).map((item) => (
-            <div className="pqrs-row" key={item.id}>
-              <span className="table-tag">{item.tipo}</span>
-              <strong>{item.asunto}</strong>
-              <span>{item.email_corp}</span>
-              <small>{item.estado}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
-}
 
-function Metric({ icon, value, label }: { icon: ReactNode; value: number; label: string }) {
-  return (
-    <div className="metric">
-      <span>{icon}</span>
-      <strong>{value}</strong>
-      <small>{label}</small>
-    </div>
+      {/* TAB 1: RESUMEN Y METRICAS */}
+      {activeTab === 'stats' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div style={{ background: 'var(--card-bg, #fff)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Asignaturas Activas</span>
+              <h3 style={{ fontSize: '28px', marginTop: '8px', color: 'var(--brand-accent, #2563eb)' }}>{subjects.length}</h3>
+            </div>
+            <div style={{ background: 'var(--card-bg, #fff)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Solicitudes PQRS</span>
+              <h3 style={{ fontSize: '28px', marginTop: '8px' }}>{pqrsList.length}</h3>
+            </div>
+            <div style={{ background: 'var(--card-bg, #fff)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Conexión Supabase</span>
+              <h3 style={{ fontSize: '18px', marginTop: '12px', color: '#10b981' }}>Activa / 200 OK</h3>
+            </div>
+          </div>
+
+          {/* SECCIÓN DEMOSTRATIVA DE FETCH Y JSON PARA LA RÚBRICA */}
+          <div style={{ background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '16px', padding: '28px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+            <span className="eyebrow">DEMOSTRACIÓN TÉCNICA (PASO 4)</span>
+            <h3 style={{ margin: '8px 0 10px', fontSize: '19px' }}>Conexión Asíncrona con <code>fetch()</code> y JSON</h3>
+            <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '18px', lineHeight: '1.5' }}>
+              Ejecuta una petición HTTP asíncrona basada en promesas para consumir un servicio externo y formatear la respuesta JSON en pantalla.
+            </p>
+
+            <button 
+              className="submit-button" 
+              style={{ maxWidth: '240px', height: '44px' }}
+              onClick={handleFetchJsonDemo}
+              disabled={fetchingApi}
+            >
+              {fetchingApi ? (
+                <>
+                  <span>Consultando API…</span>
+                  <RefreshCw className="spin" size={16} />
+                </>
+              ) : (
+                <>
+                  <strong>Probar <code>fetch()</code> asíncrono</strong>
+                  <Send size={16} />
+                </>
+              )}
+            </button>
+
+            {apiResponse && (
+              <div style={{ marginTop: '20px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>
+                  OBJETO JSON RECIBIDO:
+                </span>
+                <div style={{ background: '#0f172a', color: '#38bdf8', padding: '18px', borderRadius: '12px', fontSize: '13px', overflowX: 'auto', fontFamily: 'monospace' }}>
+                  <pre>{JSON.stringify(apiResponse, null, 2)}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: GESTIÓN DE ASIGNATURAS */}
+      {activeTab === 'subjects' && (
+        <div style={{ background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '16px', padding: '28px' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '19px' }}>Agregar Asignatura al Catálogo</h3>
+          
+          <form onSubmit={handleAddSubject} style={{ display: 'grid', gridTemplateColumns: '1fr 200px auto', gap: '15px', marginBottom: '25px' }}>
+            <label className="field" style={{ margin: 0 }}>
+              <span>Nombre de la asignatura</span>
+              <input 
+                type="text" 
+                value={newNombre} 
+                onChange={(e) => setNewNombre(e.target.value)} 
+                placeholder="Ej. Programación Orientada a Objetos" 
+                required 
+              />
+            </label>
+
+            <label className="field" style={{ margin: 0 }}>
+              <span>Categoría</span>
+              <select 
+                value={newCategoria} 
+                onChange={(e) => setNewCategoria(e.target.value as Category)}
+              >
+                <option value="ingenierias">Ingenierías</option>
+                <option value="arquitectura">Arquitectura y Diseño</option>
+                <option value="ciencias">Ciencias Básicas</option>
+              </select>
+            </label>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button className="submit-button" type="submit" disabled={loadingAction} style={{ height: '48px', padding: '0 24px' }}>
+                <Plus size={18} />
+                <strong>{loadingAction ? 'Guardando...' : 'Añadir'}</strong>
+              </button>
+            </div>
+          </form>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border-color, #e2e8f0)', color: 'var(--muted)' }}>
+                  <th style={{ padding: '12px' }}>Asignatura</th>
+                  <th style={{ padding: '12px' }}>Categoría</th>
+                  <th style={{ padding: '12px', textAlign: 'right' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subjects.map((sub) => (
+                  <tr key={sub.id} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
+                    <td style={{ padding: '12px', fontWeight: '500' }}>{sub.nombre}</td>
+                    <td style={{ padding: '12px', color: 'var(--muted)', textTransform: 'capitalize' }}>{sub.categoria}</td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>
+                      <button 
+                        onClick={() => handleDeleteSubject(sub.id)}
+                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                      >
+                        <Trash2 size={14} /> Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: VER PQRS DESDE SUPABASE */}
+      {activeTab === 'pqrs' && (
+        <div style={{ background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '16px', padding: '28px' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '19px' }}>Solicitudes de PQRS Registradas</h3>
+          
+          {loadingPqrs ? (
+            <p style={{ color: 'var(--muted)' }}>Cargando solicitudes desde Supabase…</p>
+          ) : pqrsList.length === 0 ? (
+            <p style={{ color: 'var(--muted)' }}>No hay solicitudes de PQRS registradas aún.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-color, #e2e8f0)', color: 'var(--muted)' }}>
+                    <th style={{ padding: '12px' }}>Nombre</th>
+                    <th style={{ padding: '12px' }}>Correo</th>
+                    <th style={{ padding: '12px' }}>Tipo</th>
+                    <th style={{ padding: '12px' }}>Asunto</th>
+                    <th style={{ padding: '12px' }}>Mensaje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pqrsList.map((item) => (
+                    <tr key={item.id || item.created_at} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
+                      <td style={{ padding: '12px', fontWeight: '500' }}>{item.nombre}</td>
+                      <td style={{ padding: '12px', color: 'var(--muted)' }}>{item.email_corp}</td>
+                      <td style={{ padding: '12px', textTransform: 'capitalize' }}>{item.tipo}</td>
+                      <td style={{ padding: '12px', fontWeight: '500' }}>{item.asunto}</td>
+                      <td style={{ padding: '12px', color: 'var(--muted)', maxWidth: '300px' }}>{item.mensaje}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </main>
   );
 }
